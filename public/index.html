@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>StorySprout — Bedtime stories on the fly</title>
+<style>
+  :root {
+    --bg: #fff7ec;
+    --card: #ffffff;
+    --ink: #2b2140;
+    --muted: #6b5e8a;
+    --accent: #ff8fa3;
+    --accent-2: #7dd3fc;
+    --ring: #f5d0fe;
+    --shadow: 0 10px 30px rgba(90, 60, 120, 0.12);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Nunito", "Quicksand", system-ui, -apple-system, "Segoe UI", sans-serif;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #ffe4f1 0, transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, #e0f2fe 0, transparent 55%),
+      var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    line-height: 1.55;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 32px 20px 80px; }
+  header { text-align: center; margin-bottom: 28px; }
+  header h1 {
+    font-size: clamp(2rem, 5vw, 3rem);
+    margin: 0 0 6px;
+    letter-spacing: -0.5px;
+  }
+  header p { color: var(--muted); margin: 0; font-size: 1.1rem; }
+
+  .card {
+    background: var(--card);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    padding: 24px;
+  }
+  form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px 18px;
+  }
+  form .full { grid-column: 1 / -1; }
+  label {
+    display: block;
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-bottom: 6px;
+    color: var(--ink);
+  }
+  input, select {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 1rem;
+    border: 2px solid #ecd9f5;
+    border-radius: 14px;
+    background: #fdfbff;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 120ms, box-shadow 120ms;
+  }
+  input:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--ring);
+  }
+  button {
+    font: inherit;
+    border: 0;
+    cursor: pointer;
+    border-radius: 999px;
+    padding: 14px 22px;
+    font-weight: 800;
+    font-size: 1.05rem;
+    transition: transform 80ms, box-shadow 120ms, opacity 120ms;
+  }
+  button:active { transform: translateY(1px); }
+  button[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+  .primary {
+    background: linear-gradient(135deg, #ff8fa3, #ffb86b);
+    color: #2b2140;
+    box-shadow: 0 8px 20px rgba(255, 143, 163, 0.35);
+  }
+  .ghost {
+    background: #f3ecff;
+    color: var(--ink);
+  }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  #story { margin-top: 28px; display: grid; gap: 18px; }
+  .scene {
+    background: var(--card);
+    border-radius: 22px;
+    box-shadow: var(--shadow);
+    padding: 22px 22px 24px;
+    opacity: 0;
+    transform: translateY(8px);
+    animation: pop 320ms ease-out forwards;
+  }
+  @keyframes pop { to { opacity: 1; transform: none; } }
+  .scene .emoji {
+    font-size: clamp(3rem, 9vw, 5rem);
+    line-height: 1;
+    text-align: center;
+    margin-bottom: 10px;
+    letter-spacing: 8px;
+    user-select: none;
+  }
+  .scene p {
+    font-size: 1.12rem;
+    margin: 0;
+    white-space: pre-wrap;
+  }
+  .error {
+    background: #fff0f0;
+    border: 2px solid #ffc9c9;
+    color: #8a1f1f;
+    padding: 14px 16px;
+    border-radius: 14px;
+    margin-top: 18px;
+    font-weight: 600;
+  }
+  .controls {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    margin-top: 18px;
+  }
+  footer { text-align: center; color: var(--muted); margin-top: 28px; font-size: 0.9rem; }
+
+  @media (max-width: 560px) {
+    form { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🌱 StorySprout</h1>
+    <p>Bedtime stories, dreamed up on the spot.</p>
+  </header>
+
+  <section class="card">
+    <form id="form">
+      <div>
+        <label for="heroName">Hero's name</label>
+        <input id="heroName" name="heroName" maxlength="40" placeholder="e.g. Maya" required />
+      </div>
+      <div>
+        <label for="ageRange">Age range</label>
+        <select id="ageRange" name="ageRange" required>
+          <option value="3-5">3–5 years</option>
+          <option value="6-8" selected>6–8 years</option>
+          <option value="9-12">9–12 years</option>
+        </select>
+      </div>
+      <div class="full">
+        <label for="theme">Theme or setting</label>
+        <input id="theme" name="theme" maxlength="80" placeholder="e.g. a whispering forest of talking mushrooms" required />
+      </div>
+      <div class="full">
+        <label for="moral">Lesson to weave in</label>
+        <input id="moral" name="moral" maxlength="80" placeholder="e.g. sharing, courage, or being patient" required />
+      </div>
+      <div class="full">
+        <button id="go" class="primary" type="submit">✨ Tell me a story</button>
+      </div>
+    </form>
+  </section>
+
+  <div id="story" aria-live="polite"></div>
+  <div id="controls" class="controls" hidden>
+    <button id="narrate" class="ghost" type="button">🔊 Read aloud</button>
+    <button id="newStory" class="ghost" type="button">🔁 New story</button>
+  </div>
+
+  <footer>Stories are generated fresh by Claude. No two are alike.</footer>
+</div>
+
+<script>
+  const form = document.getElementById("form");
+  const storyEl = document.getElementById("story");
+  const controlsEl = document.getElementById("controls");
+  const goBtn = document.getElementById("go");
+  const narrateBtn = document.getElementById("narrate");
+  const newStoryBtn = document.getElementById("newStory");
+
+  const canSpeak = typeof window.speechSynthesis !== "undefined";
+  if (!canSpeak) narrateBtn.style.display = "none";
+
+  let buffer = "";
+  let currentScene = null;
+  let sceneCount = 0;
+  let finishedText = "";
+
+  function resetStory() {
+    buffer = "";
+    currentScene = null;
+    sceneCount = 0;
+    finishedText = "";
+    storyEl.innerHTML = "";
+    controlsEl.hidden = true;
+    stopNarration();
+  }
+
+  function looksLikeEmojiLine(line) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.length > 24) return false;
+    // No ASCII letters, digits, or punctuation — treat as emoji-only line.
+    return !/[A-Za-z0-9]/.test(trimmed) && /\p{Extended_Pictographic}/u.test(trimmed);
+  }
+
+  function startScene() {
+    sceneCount++;
+    const scene = document.createElement("article");
+    scene.className = "scene";
+    scene.innerHTML = `<div class="emoji" aria-hidden="true"></div><p></p>`;
+    storyEl.appendChild(scene);
+    currentScene = {
+      el: scene,
+      emojiEl: scene.querySelector(".emoji"),
+      textEl: scene.querySelector("p"),
+      emojiSet: false,
+      firstLineBuffer: "",
+    };
+    scene.scrollIntoView({ behavior: "smooth", block: "end" });
+  }
+
+  function appendToScene(chunk) {
+    if (!currentScene) startScene();
+    const s = currentScene;
+    if (!s.emojiSet) {
+      s.firstLineBuffer += chunk;
+      const nl = s.firstLineBuffer.indexOf("\n");
+      if (nl === -1) return; // still gathering the emoji line
+      const first = s.firstLineBuffer.slice(0, nl);
+      const rest = s.firstLineBuffer.slice(nl + 1);
+      if (looksLikeEmojiLine(first)) {
+        s.emojiEl.textContent = first.trim();
+      } else {
+        // No emoji line — render it as prose instead.
+        s.emojiEl.remove();
+        s.textEl.textContent += first;
+      }
+      s.emojiSet = true;
+      s.firstLineBuffer = "";
+      if (rest) s.textEl.textContent += rest;
+    } else {
+      s.textEl.textContent += chunk;
+    }
+  }
+
+  function handleDelta(delta) {
+    buffer += delta;
+    finishedText += delta;
+    while (true) {
+      const marker = buffer.indexOf("===SCENE===");
+      if (marker === -1) {
+        if (currentScene) {
+          appendToScene(buffer);
+          buffer = "";
+        }
+        return;
+      }
+      // Flush anything before the marker to the current scene (if any).
+      const before = buffer.slice(0, marker);
+      if (before && currentScene) appendToScene(before);
+      buffer = buffer.slice(marker + "===SCENE===".length);
+      // Drop a single leading newline after the marker, if present.
+      if (buffer.startsWith("\r\n")) buffer = buffer.slice(2);
+      else if (buffer.startsWith("\n")) buffer = buffer.slice(1);
+      startScene();
+    }
+  }
+
+  // ---- Narration (Web Speech API) ----
+  let utterance = null;
+  function pickVoice() {
+    const voices = window.speechSynthesis.getVoices() || [];
+    const prefer = [/Samantha/i, /Karen/i, /Google US English/i, /female/i, /Victoria/i];
+    for (const pat of prefer) {
+      const v = voices.find((x) => pat.test(x.name));
+      if (v) return v;
+    }
+    return voices.find((v) => v.lang?.startsWith("en")) || voices[0] || null;
+  }
+  function narrationText() {
+    return finishedText
+      .split("\n")
+      .filter((line) => !line.includes("===SCENE===") && !looksLikeEmojiLine(line))
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  function stopNarration() {
+    if (!canSpeak) return;
+    window.speechSynthesis.cancel();
+    utterance = null;
+    narrateBtn.textContent = "🔊 Read aloud";
+  }
+  function toggleNarration() {
+    if (!canSpeak) return;
+    const synth = window.speechSynthesis;
+    if (synth.speaking && !synth.paused) {
+      synth.pause();
+      narrateBtn.textContent = "▶️ Resume";
+      return;
+    }
+    if (synth.paused) {
+      synth.resume();
+      narrateBtn.textContent = "⏸ Pause";
+      return;
+    }
+    const text = narrationText();
+    if (!text) return;
+    utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.95;
+    utterance.pitch = 1.05;
+    const voice = pickVoice();
+    if (voice) utterance.voice = voice;
+    utterance.onend = () => { narrateBtn.textContent = "🔊 Read aloud"; };
+    synth.speak(utterance);
+    narrateBtn.textContent = "⏸ Pause";
+  }
+  narrateBtn.addEventListener("click", toggleNarration);
+  newStoryBtn.addEventListener("click", () => {
+    resetStory();
+    document.getElementById("heroName").focus();
+  });
+  // Some browsers load voices asynchronously.
+  if (canSpeak) window.speechSynthesis.onvoiceschanged = () => {};
+
+  // ---- Submit flow ----
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    resetStory();
+    goBtn.disabled = true;
+    goBtn.textContent = "✨ Dreaming…";
+
+    const payload = {
+      heroName: document.getElementById("heroName").value,
+      ageRange: document.getElementById("ageRange").value,
+      theme: document.getElementById("theme").value,
+      moral: document.getElementById("moral").value,
+    };
+
+    try {
+      const res = await fetch("/story", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j.error || `Server returned ${res.status}`);
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let sseBuf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        sseBuf += decoder.decode(value, { stream: true });
+        // Split into complete SSE events (separated by blank line).
+        let idx;
+        while ((idx = sseBuf.indexOf("\n\n")) !== -1) {
+          const raw = sseBuf.slice(0, idx);
+          sseBuf = sseBuf.slice(idx + 2);
+          let event = "message";
+          let data = "";
+          for (const line of raw.split("\n")) {
+            if (line.startsWith("event:")) event = line.slice(6).trim();
+            else if (line.startsWith("data:")) data += line.slice(5).trim();
+          }
+          if (!data) continue;
+          if (event === "done") {
+            controlsEl.hidden = false;
+            break;
+          }
+          if (event === "error") {
+            const parsed = JSON.parse(data);
+            throw new Error(parsed.message || "Something went wrong.");
+          }
+          const parsed = JSON.parse(data);
+          if (typeof parsed.delta === "string") handleDelta(parsed.delta);
+        }
+      }
+    } catch (err) {
+      const box = document.createElement("div");
+      box.className = "error";
+      box.textContent = err.message || "Something went wrong.";
+      storyEl.appendChild(box);
+    } finally {
+      goBtn.disabled = false;
+      goBtn.textContent = "✨ Tell me a story";
+    }
+  });
+</script>
+</body>
+</html>
