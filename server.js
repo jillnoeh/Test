@@ -23,12 +23,12 @@ TONE & CONTENT
 - Use vivid sensory details (what things look, sound, smell, and feel like).
 
 AGE TUNING
-- Ages 3-5: ~250 words. Short, simple sentences. Lots of repetition and sound words.
-- Ages 6-8: ~400 words. Slightly richer vocabulary. Gentle humor.
-- Ages 9-12: ~550 words. More nuance, a twist or clever idea, fuller character arcs.
+- Ages 3-5: ~150 words total. Short, simple sentences. Lots of repetition and sound words.
+- Ages 6-8: ~250 words total. Slightly richer vocabulary. Gentle humor.
+- Ages 9-12: ~350 words total. More nuance, a twist or clever idea, fuller character arcs.
 
 OUTPUT FORMAT (critical — must follow exactly)
-Produce 4 to 6 scenes. Each scene MUST be formatted like this, with nothing else between them:
+Produce exactly 3 scenes — beginning, middle, end. Each scene MUST be formatted like this, with nothing else between them:
 
 ===SCENE===
 <2 to 4 emoji that visually depict this scene, on their own line>
