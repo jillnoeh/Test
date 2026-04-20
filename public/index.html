@@ -131,8 +131,18 @@
     font-weight: 600;
   }
   .controls {
-    display: flex; gap: 10px; flex-wrap: wrap;
+    display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
     margin-top: 18px;
+  }
+  .voice-picker {
+    width: auto; max-width: 260px;
+    padding: 10px 12px;
+    font-size: 0.95rem;
+    border-radius: 999px;
+    border: 2px solid #ecd9f5;
+    background: #f3ecff;
+    color: var(--ink);
+    font-weight: 600;
   }
   footer { text-align: center; color: var(--muted); margin-top: 28px; font-size: 0.9rem; }
 
@@ -225,6 +235,7 @@
   <div id="story" aria-live="polite"></div>
   <div id="controls" class="controls" hidden>
     <button id="narrate" class="ghost" type="button">🔊 Read aloud</button>
+    <select id="voicePicker" class="voice-picker" title="Narrator voice" aria-label="Narrator voice"></select>
     <button id="save" class="ghost" type="button">💾 Save to favorites</button>
     <button id="print" class="ghost" type="button">🖨 Print</button>
     <button id="newStory" class="ghost" type="button">🔁 New story</button>
@@ -248,6 +259,7 @@
   const saveBtn = document.getElementById("save");
   const printBtn = document.getElementById("print");
   const favListEl = document.getElementById("favList");
+  const voicePicker = document.getElementById("voicePicker");
 
   const canSpeak = typeof window.speechSynthesis !== "undefined";
   if (!canSpeak) narrateBtn.style.display = "none";
@@ -342,14 +354,84 @@
 
   // ---- Narration (Web Speech API) ----
   let utterance = null;
+  const VOICE_PREF_KEY = "storysprout.voice.v1";
+
+  function englishVoices() {
+    const voices = (canSpeak ? window.speechSynthesis.getVoices() : []) || [];
+    // Prefer English voices, but keep others at the bottom as fallback.
+    return voices
+      .slice()
+      .sort((a, b) => {
+        const ae = a.lang?.startsWith("en") ? 0 : 1;
+        const be = b.lang?.startsWith("en") ? 0 : 1;
+        if (ae !== be) return ae - be;
+        return a.name.localeCompare(b.name);
+      });
+  }
+  function voiceLabel(v) {
+    // Make the label friendlier: "Samantha — English (US)"
+    const lang = v.lang ? ` — ${v.lang}` : "";
+    const hints = [];
+    if (/google/i.test(v.name)) hints.push("Google");
+    if (/microsoft/i.test(v.name)) hints.push("Microsoft");
+    if (v.localService === false) hints.push("online");
+    const tag = hints.length ? ` (${hints.join(", ")})` : "";
+    return `${v.name}${lang}${tag}`;
+  }
+  function populateVoicePicker() {
+    if (!canSpeak) {
+      voicePicker.style.display = "none";
+      return;
+    }
+    const voices = englishVoices();
+    if (!voices.length) {
+      voicePicker.innerHTML = `<option>Loading voices…</option>`;
+      return;
+    }
+    const saved = localStorage.getItem(VOICE_PREF_KEY);
+    voicePicker.innerHTML = "";
+    const autoOpt = document.createElement("option");
+    autoOpt.value = "__auto__";
+    autoOpt.textContent = "🎙 Auto-pick voice";
+    voicePicker.appendChild(autoOpt);
+    voices.forEach((v) => {
+      const opt = document.createElement("option");
+      opt.value = v.name + "|" + (v.lang || "");
+      opt.textContent = voiceLabel(v);
+      voicePicker.appendChild(opt);
+    });
+    if (saved && [...voicePicker.options].some((o) => o.value === saved)) {
+      voicePicker.value = saved;
+    } else {
+      voicePicker.value = "__auto__";
+    }
+  }
   function pickVoice() {
-    const voices = window.speechSynthesis.getVoices() || [];
-    const prefer = [/Samantha/i, /Karen/i, /Google US English/i, /female/i, /Victoria/i];
+    const voices = englishVoices();
+    if (!voices.length) return null;
+    const pref = voicePicker?.value;
+    if (pref && pref !== "__auto__") {
+      const match = voices.find((v) => pref === v.name + "|" + (v.lang || ""));
+      if (match) return match;
+    }
+    // Auto pick: well-known warm storyteller voices first.
+    const prefer = [/Samantha/i, /Karen/i, /Google US English/i, /Jenny/i, /Aria/i, /female/i, /Victoria/i];
     for (const pat of prefer) {
       const v = voices.find((x) => pat.test(x.name));
       if (v) return v;
     }
     return voices.find((v) => v.lang?.startsWith("en")) || voices[0] || null;
+  }
+  if (canSpeak) {
+    voicePicker.addEventListener("change", () => {
+      localStorage.setItem(VOICE_PREF_KEY, voicePicker.value);
+      // If currently narrating, restart with new voice.
+      const synth = window.speechSynthesis;
+      if (synth.speaking || synth.paused) {
+        stopNarration();
+        toggleNarration();
+      }
+    });
   }
   function narrationText() {
     return finishedText
@@ -397,7 +479,10 @@
   printBtn.addEventListener("click", () => window.print());
   saveBtn.addEventListener("click", saveCurrentToFavorites);
   // Some browsers load voices asynchronously.
-  if (canSpeak) window.speechSynthesis.onvoiceschanged = () => {};
+  if (canSpeak) {
+    populateVoicePicker();
+    window.speechSynthesis.onvoiceschanged = populateVoicePicker;
+  }
 
   // ---- Favorites (localStorage) ----
   const FAV_KEY = "storysprout.favorites.v1";
