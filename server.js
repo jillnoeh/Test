@@ -6,8 +6,61 @@ import "dotenv/config";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const APP_PASSWORD = process.env.APP_PASSWORD || "storysprout123";
+const COOKIE_NAME = "sp_auth";
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+
 const app = express();
 app.use(express.json({ limit: "16kb" }));
+
+function parseCookies(req) {
+  const header = req.headers.cookie || "";
+  const out = {};
+  header.split(";").forEach((part) => {
+    const idx = part.indexOf("=");
+    if (idx === -1) return;
+    const k = part.slice(0, idx).trim();
+    const v = part.slice(idx + 1).trim();
+    if (k) out[k] = decodeURIComponent(v);
+  });
+  return out;
+}
+function isAuthed(req) {
+  return parseCookies(req)[COOKIE_NAME] === APP_PASSWORD;
+}
+
+// Public routes (no auth required)
+app.get("/login", (req, res) => {
+  if (isAuthed(req)) return res.redirect("/");
+  res.sendFile(path.join(__dirname, "public", "login.html"));
+});
+
+app.post("/login", (req, res) => {
+  const password = typeof req.body?.password === "string" ? req.body.password : "";
+  if (password === APP_PASSWORD) {
+    res.setHeader(
+      "Set-Cookie",
+      `${COOKIE_NAME}=${encodeURIComponent(password)}; HttpOnly; Path=/; Max-Age=${COOKIE_MAX_AGE}; SameSite=Lax`
+    );
+    return res.json({ ok: true });
+  }
+  return res.status(401).json({ error: "Wrong password. Try again." });
+});
+
+app.post("/logout", (req, res) => {
+  res.setHeader("Set-Cookie", `${COOKIE_NAME}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax`);
+  res.json({ ok: true });
+});
+
+// Gate everything else
+app.use((req, res, next) => {
+  if (isAuthed(req)) return next();
+  if (req.method === "GET" && req.headers.accept?.includes("text/html")) {
+    return res.redirect("/login");
+  }
+  return res.status(401).json({ error: "Not authenticated" });
+});
+
 app.use(express.static(path.join(__dirname, "public")));
 
 const client = new Anthropic();

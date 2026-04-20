@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>StorySprout — Sign in</title>
+<style>
+  :root {
+    --bg: #fff7ec;
+    --card: #ffffff;
+    --ink: #2b2140;
+    --muted: #6b5e8a;
+    --accent: #ff8fa3;
+    --ring: #f5d0fe;
+    --shadow: 0 10px 30px rgba(90, 60, 120, 0.12);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Nunito", "Quicksand", system-ui, -apple-system, "Segoe UI", sans-serif;
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #ffe4f1 0, transparent 60%),
+      radial-gradient(900px 500px at 110% 10%, #e0f2fe 0, transparent 55%),
+      var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    padding: 32px 28px;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+  }
+  h1 { margin: 0 0 6px; font-size: 2rem; letter-spacing: -0.5px; }
+  .sub { color: var(--muted); margin: 0 0 22px; }
+  label { display: block; text-align: left; font-weight: 700; font-size: 0.95rem; margin: 0 0 6px; }
+  input {
+    width: 100%; padding: 12px 14px; font-size: 1rem;
+    border: 2px solid #ecd9f5; border-radius: 14px;
+    background: #fdfbff; color: var(--ink);
+    outline: none; font-family: inherit;
+    transition: border-color 120ms, box-shadow 120ms;
+  }
+  input:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--ring); }
+  button {
+    margin-top: 16px; width: 100%;
+    font: inherit; border: 0; cursor: pointer;
+    border-radius: 999px; padding: 14px 22px;
+    font-weight: 800; font-size: 1.05rem;
+    background: linear-gradient(135deg, #ff8fa3, #ffb86b);
+    color: #2b2140;
+    box-shadow: 0 8px 20px rgba(255, 143, 163, 0.35);
+  }
+  button[disabled] { opacity: 0.55; cursor: not-allowed; }
+  .error {
+    margin-top: 14px;
+    background: #fff0f0; border: 2px solid #ffc9c9; color: #8a1f1f;
+    padding: 10px 14px; border-radius: 12px; font-weight: 600;
+    display: none;
+  }
+  .error.show { display: block; }
+</style>
+</head>
+<body>
+  <form class="card" id="loginForm">
+    <h1>🌱 StorySprout</h1>
+    <p class="sub">Enter the password to start telling stories.</p>
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required autofocus />
+    <button id="submit" type="submit">Unlock</button>
+    <div id="error" class="error"></div>
+  </form>
+
+<script>
+  const form = document.getElementById("loginForm");
+  const pw = document.getElementById("password");
+  const err = document.getElementById("error");
+  const btn = document.getElementById("submit");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    err.classList.remove("show");
+    btn.disabled = true;
+    btn.textContent = "Unlocking…";
+    try {
+      const res = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: pw.value }),
+      });
+      if (res.ok) {
+        window.location.href = "/";
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      err.textContent = data.error || "Something went wrong. Try again.";
+      err.classList.add("show");
+      pw.select();
+    } catch (e) {
+      err.textContent = "Network error. Try again.";
+      err.classList.add("show");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Unlock";
+    }
+  });
+</script>
+</body>
+</html>

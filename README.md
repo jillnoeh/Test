@@ -44,5 +44,6 @@ Bedtime stories, dreamed up on the spot. Give it a hero, an age, a setting, and 
 ## Tweaking
 
 - Want longer stories? Raise `max_tokens` in `server.js`.
-- Want a different voice? Edit the `prefer` list in `pickVoice()` inside `index.html`.
+- Want a different voice? Use the in-app voice picker, or edit the `prefer` list in `pickVoice()` inside `public/index.html`.
 - Want a different model? Change `model: "claude-haiku-4-5"` in `server.js` (e.g. to `claude-sonnet-4-6` for richer prose at higher cost).
+- Want a different password? Set `APP_PASSWORD=your-new-password` in `.env` (locally) or in your hosting platform's environment variables. Default is `storysprout123`.
