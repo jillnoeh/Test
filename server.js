@@ -23,6 +23,7 @@ TONE & CONTENT
 - Use vivid sensory details (what things look, sound, smell, and feel like).
 
 AGE TUNING
+- Ages 0-3: ~75 words total. Tiny sentences. Rhythmic, repetitive, sing-songy. Lots of animal sounds and action words (splash! hop! giggle!). Very concrete, no abstract concepts.
 - Ages 3-5: ~150 words total. Short, simple sentences. Lots of repetition and sound words.
 - Ages 6-8: ~250 words total. Slightly richer vocabulary. Gentle humor.
 - Ages 9-12: ~350 words total. More nuance, a twist or clever idea, fuller character arcs.
@@ -46,13 +47,14 @@ function sanitize(s, max = 80) {
   return s.trim().slice(0, max);
 }
 
-const VALID_AGES = new Set(["3-5", "6-8", "9-12"]);
+const VALID_AGES = new Set(["0-3", "3-5", "6-8", "9-12"]);
 
 app.post("/story", async (req, res) => {
   const heroName = sanitize(req.body?.heroName);
   const ageRange = sanitize(req.body?.ageRange, 8);
   const theme = sanitize(req.body?.theme);
   const moral = sanitize(req.body?.moral);
+  const extraContext = sanitize(req.body?.extraContext, 300);
 
   if (!heroName || !theme || !moral) {
     return res.status(400).json({ error: "Please fill in hero name, theme, and moral." });
@@ -70,7 +72,8 @@ app.post("/story", async (req, res) => {
 - Hero's name: ${heroName}
 - Audience age: ${ageRange}
 - Theme / setting: ${theme}
-- Lesson woven in: ${moral}
+- Lesson woven in: ${moral}${extraContext ? `
+- Extra details to weave in: ${extraContext}` : ""}
 
 Remember the ===SCENE=== format exactly.`;
 

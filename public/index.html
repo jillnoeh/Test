@@ -55,7 +55,7 @@
     margin-bottom: 6px;
     color: var(--ink);
   }
-  input, select {
+  input, select, textarea {
     width: 100%;
     padding: 12px 14px;
     font-size: 1rem;
@@ -65,11 +65,14 @@
     color: var(--ink);
     outline: none;
     transition: border-color 120ms, box-shadow 120ms;
+    font-family: inherit;
   }
-  input:focus, select:focus {
+  textarea { resize: vertical; min-height: 70px; }
+  input:focus, select:focus, textarea:focus {
     border-color: var(--accent);
     box-shadow: 0 0 0 4px var(--ring);
   }
+  .hint { font-weight: 500; color: var(--muted); font-size: 0.85rem; }
   button {
     font: inherit;
     border: 0;
@@ -133,8 +136,49 @@
   }
   footer { text-align: center; color: var(--muted); margin-top: 28px; font-size: 0.9rem; }
 
+  /* Favorites panel */
+  .favorites {
+    margin-top: 20px;
+    background: var(--card);
+    border-radius: 22px;
+    box-shadow: var(--shadow);
+    padding: 20px 22px;
+  }
+  .favorites h2 { margin: 0 0 12px; font-size: 1.3rem; }
+  .fav-list { display: grid; gap: 10px; }
+  .fav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: #faf4ff;
+    border: 2px solid transparent;
+  }
+  .fav-item:hover { border-color: var(--ring); }
+  .fav-item .title { flex: 1; font-weight: 700; }
+  .fav-item .meta { color: var(--muted); font-size: 0.85rem; }
+  .fav-item .mini-btn {
+    background: transparent; padding: 6px 10px; font-size: 0.9rem;
+    border-radius: 10px; font-weight: 700;
+  }
+  .fav-item .mini-btn:hover { background: #eadbfd; }
+  .empty { color: var(--muted); font-style: italic; text-align: center; padding: 8px 0; }
+
   @media (max-width: 560px) {
     form { grid-template-columns: 1fr; }
+  }
+
+  /* Print view — shows only the story, clean and centered */
+  @media print {
+    body { background: #fff !important; }
+    header, .card, #controls, .favorites, footer { display: none !important; }
+    .wrap { max-width: 100%; padding: 0; }
+    #story { margin-top: 0; }
+    .scene {
+      box-shadow: none !important;
+      border: 1px solid #e5e5e5;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
   }
 </style>
 </head>
@@ -154,6 +198,7 @@
       <div>
         <label for="ageRange">Age range</label>
         <select id="ageRange" name="ageRange" required>
+          <option value="0-3">0–3 years</option>
           <option value="3-5">3–5 years</option>
           <option value="6-8" selected>6–8 years</option>
           <option value="9-12">9–12 years</option>
@@ -168,6 +213,10 @@
         <input id="moral" name="moral" maxlength="80" placeholder="e.g. sharing, courage, or being patient" required />
       </div>
       <div class="full">
+        <label for="extraContext">Extra details <span class="hint">(optional)</span></label>
+        <textarea id="extraContext" name="extraContext" maxlength="300" placeholder="e.g. include a shy rabbit sidekick, set it at grandma's house, the hero loves dinosaurs..."></textarea>
+      </div>
+      <div class="full">
         <button id="go" class="primary" type="submit">✨ Tell me a story</button>
       </div>
     </form>
@@ -176,8 +225,15 @@
   <div id="story" aria-live="polite"></div>
   <div id="controls" class="controls" hidden>
     <button id="narrate" class="ghost" type="button">🔊 Read aloud</button>
+    <button id="save" class="ghost" type="button">💾 Save to favorites</button>
+    <button id="print" class="ghost" type="button">🖨 Print</button>
     <button id="newStory" class="ghost" type="button">🔁 New story</button>
   </div>
+
+  <section id="favorites" class="favorites">
+    <h2>📚 My favorite stories</h2>
+    <div id="favList" class="fav-list"></div>
+  </section>
 
   <footer>Stories are generated fresh by Claude. No two are alike.</footer>
 </div>
@@ -189,6 +245,9 @@
   const goBtn = document.getElementById("go");
   const narrateBtn = document.getElementById("narrate");
   const newStoryBtn = document.getElementById("newStory");
+  const saveBtn = document.getElementById("save");
+  const printBtn = document.getElementById("print");
+  const favListEl = document.getElementById("favList");
 
   const canSpeak = typeof window.speechSynthesis !== "undefined";
   if (!canSpeak) narrateBtn.style.display = "none";
@@ -197,6 +256,7 @@
   let currentScene = null;
   let sceneCount = 0;
   let finishedText = "";
+  let lastParams = null;
 
   function resetStory() {
     buffer = "";
@@ -206,6 +266,8 @@
     storyEl.innerHTML = "";
     controlsEl.hidden = true;
     stopNarration();
+    saveBtn.textContent = "💾 Save to favorites";
+    saveBtn.disabled = false;
   }
 
   function looksLikeEmojiLine(line) {
@@ -332,8 +394,101 @@
     resetStory();
     document.getElementById("heroName").focus();
   });
+  printBtn.addEventListener("click", () => window.print());
+  saveBtn.addEventListener("click", saveCurrentToFavorites);
   // Some browsers load voices asynchronously.
   if (canSpeak) window.speechSynthesis.onvoiceschanged = () => {};
+
+  // ---- Favorites (localStorage) ----
+  const FAV_KEY = "storysprout.favorites.v1";
+
+  function loadFavorites() {
+    try {
+      const raw = localStorage.getItem(FAV_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  }
+  function writeFavorites(list) {
+    localStorage.setItem(FAV_KEY, JSON.stringify(list));
+  }
+  function favTitle(p) {
+    const hero = p?.heroName || "Hero";
+    const theme = (p?.theme || "").split(/[,;.]/)[0].trim();
+    return theme ? `${hero} & ${theme}` : hero;
+  }
+  function formatDate(ts) {
+    try { return new Date(ts).toLocaleDateString(undefined, { month: "short", day: "numeric" }); }
+    catch { return ""; }
+  }
+  function renderFavorites() {
+    const list = loadFavorites();
+    favListEl.innerHTML = "";
+    if (!list.length) {
+      const empty = document.createElement("div");
+      empty.className = "empty";
+      empty.textContent = "No saved stories yet. Generate one and click 💾 Save to favorites.";
+      favListEl.appendChild(empty);
+      return;
+    }
+    list.forEach((fav) => {
+      const item = document.createElement("div");
+      item.className = "fav-item";
+      item.innerHTML = `
+        <div>
+          <div class="title"></div>
+          <div class="meta"></div>
+        </div>
+        <button class="mini-btn" data-action="open">Open</button>
+        <button class="mini-btn" data-action="delete">🗑</button>
+      `;
+      item.querySelector(".title").textContent = fav.title;
+      item.querySelector(".meta").textContent = `${fav.params?.ageRange || ""} • ${formatDate(fav.ts)}`;
+      item.querySelector('[data-action="open"]').addEventListener("click", () => openFavorite(fav.id));
+      item.querySelector('[data-action="delete"]').addEventListener("click", () => {
+        if (!confirm("Delete this saved story?")) return;
+        writeFavorites(loadFavorites().filter((f) => f.id !== fav.id));
+        renderFavorites();
+      });
+      // Make the row itself clickable except on buttons
+      item.addEventListener("click", (ev) => {
+        if (ev.target.closest(".mini-btn")) return;
+        openFavorite(fav.id);
+      });
+      favListEl.appendChild(item);
+    });
+  }
+  function saveCurrentToFavorites() {
+    if (!finishedText || !lastParams) return;
+    const list = loadFavorites();
+    const entry = {
+      id: "fav_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+      ts: Date.now(),
+      title: favTitle(lastParams),
+      params: lastParams,
+      text: finishedText,
+    };
+    list.unshift(entry);
+    writeFavorites(list);
+    renderFavorites();
+    saveBtn.textContent = "✅ Saved";
+    saveBtn.disabled = true;
+  }
+  function openFavorite(id) {
+    const fav = loadFavorites().find((f) => f.id === id);
+    if (!fav) return;
+    resetStory();
+    lastParams = fav.params || null;
+    // Re-render the saved text by feeding it through the same parser.
+    // Stream-simulated: append in chunks so scenes render the same way.
+    handleDelta(fav.text);
+    finishedText = fav.text;
+    controlsEl.hidden = false;
+    // Mark the save button as already saved for this one.
+    saveBtn.textContent = "✅ Saved";
+    saveBtn.disabled = true;
+    storyEl.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  renderFavorites();
 
   // ---- Submit flow ----
   form.addEventListener("submit", async (e) => {
@@ -347,7 +502,9 @@
       ageRange: document.getElementById("ageRange").value,
       theme: document.getElementById("theme").value,
       moral: document.getElementById("moral").value,
+      extraContext: document.getElementById("extraContext").value,
     };
+    lastParams = payload;
 
     try {
       const res = await fetch("/story", {
