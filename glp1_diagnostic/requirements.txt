@@ -1,0 +1,8 @@
+streamlit>=1.32
+beautifulsoup4>=4.12
+playwright>=1.42
+requests>=2.31
+pandas>=2.1
+plotly>=5.20
+pydantic>=2.6
+lxml>=5.1
